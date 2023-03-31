@@ -1,0 +1,25 @@
+[package]
+name = "bung"
+publish = true
+edition = "2021"
+version = "0.0.0"
+rust-version = "1.56.0"
+readme = "README.md"
+authors = ["Tobie Morgan Hitchcock <tobie@surrealdb.com>"]
+description = "A serialization implementation for SurrealDB, based on MessagePack"
+repository = "https://github.com/surrealdb/bung"
+homepage = "https://github.com/surrealdb/bung"
+documentation = "https://docs.rs/bung/"
+keywords = ["msgpack", "MessagePack", "serde", "serialization"]
+categories = ["encoding"]
+license = "MIT"
+
+[dependencies]
+byteorder = "1.4.3"
+rmp = "0.8.11"
+serde = "1.0.159"
+
+[dev-dependencies]
+rmpv = "1.0.0"
+serde_bytes = "0.11.9"
+serde_derive = "1.0.159"
