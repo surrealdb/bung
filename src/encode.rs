@@ -15,8 +15,8 @@ use rmp::encode::ValueWriteError;
 use rmp::{encode, Marker};
 
 use crate::config::{
-	BinaryConfig, DefaultConfig, HumanReadableConfig, SerializerConfig, StructMapConfig,
-	StructTupleConfig,
+	BinaryConfig, DefaultConfig, HumanReadableConfig, SerializerConfig, StructMapCompactConfig,
+	StructMapConfig, StructTupleCompactConfig, StructTupleConfig,
 };
 use crate::MSGPACK_EXT_STRUCT_NAME;
 
@@ -235,6 +235,43 @@ impl<W: Write, C> Serializer<W, C> {
 			wr,
 			depth,
 			config: StructTupleConfig::new(config),
+		}
+	}
+
+	/// Consumes this serializer returning the new one, which will serialize structs as a map.
+	///
+	/// This is used, when the default struct serialization as a tuple does not fit your
+	/// requirements.
+	#[inline]
+	pub fn with_struct_map_compact(self) -> Serializer<W, StructMapCompactConfig<C>> {
+		let Serializer {
+			wr,
+			depth,
+			config,
+		} = self;
+		Serializer {
+			wr,
+			depth,
+			config: StructMapCompactConfig::new(config),
+		}
+	}
+
+	/// Consumes this serializer returning the new one, which will serialize structs as a tuple
+	/// without field names.
+	///
+	/// This is the default MessagePack serialization mechanism, emitting the most compact
+	/// representation.
+	#[inline]
+	pub fn with_struct_tuple_compact(self) -> Serializer<W, StructTupleCompactConfig<C>> {
+		let Serializer {
+			wr,
+			depth,
+			config,
+		} = self;
+		Serializer {
+			wr,
+			depth,
+			config: StructTupleCompactConfig::new(config),
 		}
 	}
 
@@ -1204,6 +1241,32 @@ where
 	val.serialize(&mut se)
 }
 
+/// Serialize the given data structure as MessagePack into the I/O stream.
+/// This function serializes structures as maps
+///
+/// Serialization can fail if `T`'s implementation of `Serialize` decides to fail.
+pub fn write_compact<W, T>(wr: &mut W, val: &T) -> Result<(), Error>
+where
+	W: Write + ?Sized,
+	T: Serialize + ?Sized,
+{
+	let mut se = Serializer::new(wr).with_struct_tuple_compact();
+	val.serialize(&mut se)
+}
+
+/// Serialize the given data structure as MessagePack into the I/O stream.
+/// This function serializes structures as maps
+///
+/// Serialization can fail if `T`'s implementation of `Serialize` decides to fail.
+pub fn write_named_compact<W, T>(wr: &mut W, val: &T) -> Result<(), Error>
+where
+	W: Write + ?Sized,
+	T: Serialize + ?Sized,
+{
+	let mut se = Serializer::new(wr).with_struct_map_compact();
+	val.serialize(&mut se)
+}
+
 /// Serialize the given data structure as a MessagePack byte vector.
 /// This method uses compact representation, structs are serialized as arrays
 ///
@@ -1225,11 +1288,43 @@ where
 ///
 /// Serialization can fail if `T`'s implementation of `Serialize` decides to fail.
 #[inline]
+pub fn to_vec_compact<T>(val: &T) -> Result<Vec<u8>, Error>
+where
+	T: Serialize + ?Sized,
+{
+	let mut wr = Vec::with_capacity(128);
+	write_compact(&mut wr, val)?;
+	Ok(wr)
+}
+
+/// Serializes data structure into byte vector as a map
+/// Resulting MessagePack message will contain field names
+///
+/// # Errors
+///
+/// Serialization can fail if `T`'s implementation of `Serialize` decides to fail.
+#[inline]
 pub fn to_vec_named<T>(val: &T) -> Result<Vec<u8>, Error>
 where
 	T: Serialize + ?Sized,
 {
 	let mut wr = Vec::with_capacity(128);
 	write_named(&mut wr, val)?;
+	Ok(wr)
+}
+
+/// Serializes data structure into byte vector as a map
+/// Resulting MessagePack message will contain field names
+///
+/// # Errors
+///
+/// Serialization can fail if `T`'s implementation of `Serialize` decides to fail.
+#[inline]
+pub fn to_vec_named_compact<T>(val: &T) -> Result<Vec<u8>, Error>
+where
+	T: Serialize + ?Sized,
+{
+	let mut wr = Vec::with_capacity(128);
+	write_named_compact(&mut wr, val)?;
 	Ok(wr)
 }

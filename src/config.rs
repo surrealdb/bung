@@ -163,6 +163,67 @@ where
 	}
 }
 
+/// Config wrapper, that overrides struct serialization by packing as a map with field names.
+///
+/// MessagePack specification does not tell how to serialize structs. This trait allows you to
+/// extend serialization to match your app's requirements.
+///
+/// Default `Serializer` implementation writes structs as a tuple, i.e. only its length is encoded,
+/// because it is the most compact representation.
+#[derive(Copy, Clone, Debug)]
+pub struct StructMapCompactConfig<C>(C);
+
+impl<C> StructMapCompactConfig<C> {
+	/// Creates a `StructMapConfig` inheriting unchanged configuration options from the given configuration.
+	#[inline]
+	pub fn new(inner: C) -> Self {
+		StructMapCompactConfig(inner)
+	}
+}
+
+impl<C> sealed::SerializerConfig for StructMapCompactConfig<C>
+where
+	C: sealed::SerializerConfig,
+{
+	fn write_struct_len<S>(ser: &mut S, len: usize) -> Result<(), Error>
+	where
+		S: UnderlyingWrite,
+		for<'a> &'a mut S: Serializer<Ok = (), Error = Error>,
+	{
+		encode::write_map_len(ser.get_mut(), len as u32)?;
+
+		Ok(())
+	}
+
+	fn write_struct_field<S, T>(ser: &mut S, key: &'static str, value: &T) -> Result<(), Error>
+	where
+		S: UnderlyingWrite,
+		for<'a> &'a mut S: Serializer<Ok = (), Error = Error>,
+		T: ?Sized + Serialize,
+	{
+		encode::write_str(ser.get_mut(), key)?;
+		value.serialize(ser)
+	}
+
+	#[inline]
+	fn write_variant_ident<S>(
+		ser: &mut S,
+		variant_index: u32,
+		_variant: &'static str,
+	) -> Result<(), Error>
+	where
+		S: UnderlyingWrite,
+		for<'a> &'a mut S: Serializer<Ok = (), Error = Error>,
+	{
+		ser.serialize_u32(variant_index)
+	}
+
+	#[inline(always)]
+	fn is_human_readable() -> bool {
+		C::is_human_readable()
+	}
+}
+
 /// Config wrapper that overrides struct serlization by packing as a tuple without field
 /// names.
 #[derive(Copy, Clone, Debug)]
@@ -211,6 +272,62 @@ where
 		for<'a> &'a mut S: Serializer<Ok = (), Error = Error>,
 	{
 		C::write_variant_ident(ser, variant_index, variant)
+	}
+
+	#[inline(always)]
+	fn is_human_readable() -> bool {
+		C::is_human_readable()
+	}
+}
+
+/// Config wrapper that overrides struct serlization by packing as a tuple without field
+/// names.
+#[derive(Copy, Clone, Debug)]
+pub struct StructTupleCompactConfig<C>(C);
+
+impl<C> StructTupleCompactConfig<C> {
+	/// Creates a `StructTupleConfig` inheriting unchanged configuration options from the given configuration.
+	#[inline]
+	pub fn new(inner: C) -> Self {
+		StructTupleCompactConfig(inner)
+	}
+}
+
+impl<C> sealed::SerializerConfig for StructTupleCompactConfig<C>
+where
+	C: sealed::SerializerConfig,
+{
+	fn write_struct_len<S>(ser: &mut S, len: usize) -> Result<(), Error>
+	where
+		S: UnderlyingWrite,
+		for<'a> &'a mut S: Serializer<Ok = (), Error = Error>,
+	{
+		encode::write_array_len(ser.get_mut(), len as u32)?;
+
+		Ok(())
+	}
+
+	#[inline]
+	fn write_struct_field<S, T>(ser: &mut S, _key: &'static str, value: &T) -> Result<(), Error>
+	where
+		S: UnderlyingWrite,
+		for<'a> &'a mut S: Serializer<Ok = (), Error = Error>,
+		T: ?Sized + Serialize,
+	{
+		value.serialize(ser)
+	}
+
+	#[inline]
+	fn write_variant_ident<S>(
+		ser: &mut S,
+		variant_index: u32,
+		_variant: &'static str,
+	) -> Result<(), Error>
+	where
+		S: UnderlyingWrite,
+		for<'a> &'a mut S: Serializer<Ok = (), Error = Error>,
+	{
+		ser.serialize_u32(variant_index)
 	}
 
 	#[inline(always)]

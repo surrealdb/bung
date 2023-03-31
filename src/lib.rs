@@ -69,7 +69,7 @@ use serde::{Deserialize, Serialize};
 #[allow(deprecated)]
 pub use crate::decode::from_read_ref;
 pub use crate::decode::{from_read, Deserializer};
-pub use crate::encode::{to_vec, to_vec_named, Serializer};
+pub use crate::encode::{to_vec, to_vec_compact, to_vec_named, to_vec_named_compact, Serializer};
 
 pub use crate::decode::from_slice;
 
